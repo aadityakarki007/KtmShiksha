@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import Section from "@/models/Section";
+import "@/models/Class";
 import { requireApiAuth } from "@/lib/auth";
 import { sectionBodySchema } from "@/lib/validations";
 import { jsonError, jsonOk, parseBody } from "@/lib/http";
