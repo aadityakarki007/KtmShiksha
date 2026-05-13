@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import Student from "@/models/Student";
 import Teacher from "@/models/Teacher";
+import "@/models/Class";
+import "@/models/Section";
 import { requireApiAuth } from "@/lib/auth";
 import { paginationSchema, studentBodySchema } from "@/lib/validations";
 import { jsonError, jsonOk, parseBody } from "@/lib/http";
@@ -19,11 +21,16 @@ export async function GET(req) {
   await connectDB();
 
   const params = Object.fromEntries(req.nextUrl.searchParams.entries());
+  const numericLimit = Number(params.limit);
+  if (params.limit !== undefined && Number.isFinite(numericLimit) && numericLimit > 100) {
+    params.limit = "100";
+  }
+
   const parsedPage = paginationSchema.safeParse({
-  page: params.page,
-  limit: params.limit,
-  search: params.search,
-});
+    page: params.page,
+    limit: params.limit,
+    search: params.search,
+  });
   if (!parsedPage.success) {
     return jsonError(parsedPage.error.flatten().formErrors.join(", "), 400);
   }
@@ -44,7 +51,9 @@ export async function GET(req) {
       const meta = buildPagination({ page, limit }, total);
       return jsonOk({ data: [], pagination: meta });
     }
-    allowedClassIds = new Set(teacherDoc.assignments.map((a) => String(a.classId)));
+    allowedClassIds = new Set(
+      teacherDoc.assignments.map((a) => String(a.classId?._id ?? a.classId))
+    );
   }
 
   if (classId && mongoose.Types.ObjectId.isValid(classId)) {
