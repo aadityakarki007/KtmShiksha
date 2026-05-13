@@ -1,3 +1,4 @@
+//src/app/api/students/route.js
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import Student from "@/models/Student";
@@ -18,7 +19,11 @@ export async function GET(req) {
   await connectDB();
 
   const params = Object.fromEntries(req.nextUrl.searchParams.entries());
-  const parsedPage = paginationSchema.safeParse(params);
+  const parsedPage = paginationSchema.safeParse({
+  page: params.page,
+  limit: params.limit,
+  search: params.search,
+});
   if (!parsedPage.success) {
     return jsonError(parsedPage.error.flatten().formErrors.join(", "), 400);
   }

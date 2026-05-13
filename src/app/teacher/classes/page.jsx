@@ -5,6 +5,10 @@ import Teacher from "@/models/Teacher";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+
+import "@/models/Class";
+import "@/models/Section";
+import "@/models/Subject";
 export const dynamic = "force-dynamic";
 
 export const metadata = {

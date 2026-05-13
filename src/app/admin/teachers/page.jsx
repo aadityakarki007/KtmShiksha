@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -91,32 +91,50 @@ export default function AdminTeachersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString]);
 
-  useEffect(() => {
-    async function loadRefs() {
-      try {
-        const [classRes, sectionRes, subjectRes] = await Promise.all([
-          apiFetch("/api/classes?limit=200"),
-          apiFetch("/api/sections?limit=200"),
-          apiFetch("/api/subjects?limit=300"),
-        ]);
-        setClasses((classRes.data ?? []).map((c) => ({ ...c, _id: String(c._id) })));
-        setSections(
-          (sectionRes.data ?? []).map((s) => ({
-            ...s,
-            _id: String(s._id),
-            classId: String(s.classId?._id ?? s.classId ?? ""),
-          }))
-        );
-        setSubjects((subjectRes.data ?? []).map((s) => ({ ...s, _id: String(s._id) })));
-      } catch {
-        setClasses([]);
-        setSections([]);
-        setSubjects([]);
-      }
-    }
+  const loadAssignmentRefs = useCallback(async () => {
+    const endpoints = [
+      { label: "Classes", url: "/api/classes?limit=100&page=1" },
+      { label: "Sections", url: "/api/sections?limit=100&page=1" },
+      { label: "Subjects", url: "/api/subjects?limit=100&page=1" },
+    ];
+    const settled = await Promise.allSettled(
+      endpoints.map(({ url }) => apiFetch(url))
+    );
 
-    loadRefs();
+    settled.forEach((result, i) => {
+      if (result.status === "rejected") {
+        toast.error(
+          `${endpoints[i].label}: ${result.reason?.message ?? "Could not load"}`
+        );
+      }
+    });
+
+    const classRes =
+      settled[0].status === "fulfilled" ? settled[0].value : { data: [] };
+    const sectionRes =
+      settled[1].status === "fulfilled" ? settled[1].value : { data: [] };
+    const subjectRes =
+      settled[2].status === "fulfilled" ? settled[2].value : { data: [] };
+
+    setClasses((classRes.data ?? []).map((c) => ({ ...c, _id: String(c._id) })));
+    setSections(
+      (sectionRes.data ?? []).map((s) => ({
+        ...s,
+        _id: String(s._id),
+        classId: String(s.classId?._id ?? s.classId ?? ""),
+      }))
+    );
+    setSubjects((subjectRes.data ?? []).map((s) => ({ ...s, _id: String(s._id) })));
   }, []);
+
+  useEffect(() => {
+    void loadAssignmentRefs();
+  }, [loadAssignmentRefs]);
+
+  useEffect(() => {
+    if (!dialogOpen) return;
+    void loadAssignmentRefs();
+  }, [dialogOpen, loadAssignmentRefs]);
 
   useEffect(() => {
     if (!dialogOpen) return;
