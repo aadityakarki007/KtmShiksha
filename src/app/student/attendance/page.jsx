@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/client-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StudentPageIntro } from "@/components/student/student-page-intro";
 import {
   Table,
   TableBody,
@@ -31,14 +32,12 @@ export default function StudentAttendancePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Attendance history</h1>
-        <p className="text-muted-foreground mt-2 text-sm">
-          Pulled directly from daily registers saved by your teachers.
-        </p>
-      </div>
+      <StudentPageIntro
+        title="Attendance history"
+        description="Pulled directly from daily registers saved by your teachers."
+      />
 
-      <Card>
+      <Card className="border-emerald-500/15 shadow-sm transition-all duration-300 hover:shadow-md dark:border-emerald-800/30">
         <CardHeader>
           <CardTitle>Records</CardTitle>
         </CardHeader>

@@ -3,11 +3,13 @@ import { connectDB } from "@/lib/mongodb";
 import Attendance from "@/models/Attendance";
 import Teacher from "@/models/Teacher";
 import Student from "@/models/Student";
+import "@/models/Class";
+import "@/models/Section";
 import { requireApiAuth } from "@/lib/auth";
 import { attendanceBodySchema, attendanceBulkSchema, paginationSchema } from "@/lib/validations";
 import { jsonError, jsonOk, parseBody } from "@/lib/http";
 import { buildPagination } from "@/lib/pagination";
-import { teacherTeachesClass } from "@/lib/teacher-access";
+import { teacherTeachesClassSection } from "@/lib/teacher-access";
 
 export async function GET(req) {
   const gate = await requireApiAuth({
@@ -20,6 +22,11 @@ export async function GET(req) {
   await connectDB();
 
   const params = Object.fromEntries(req.nextUrl.searchParams.entries());
+  const numericLimit = Number(params.limit);
+  if (params.limit !== undefined && Number.isFinite(numericLimit) && numericLimit > 100) {
+    params.limit = "100";
+  }
+
   const parsedPage = paginationSchema.safeParse(params);
   if (!parsedPage.success) {
     return jsonError(parsedPage.error.flatten().formErrors.join(", "), 400);
@@ -51,21 +58,66 @@ export async function GET(req) {
       const meta = buildPagination({ page, limit }, 0);
       return jsonOk({ data: [], pagination: meta });
     }
-    const allowed = [...new Set(teacher.assignments.map((a) => String(a.classId)))];
+
+    const assignmentClassIds = [
+      ...new Set(
+        (teacher.assignments ?? []).map((a) => String(a.classId?._id ?? a.classId ?? ""))
+      ),
+    ].filter(Boolean);
+
     if (classId && mongoose.Types.ObjectId.isValid(classId)) {
-      if (!allowed.includes(classId)) {
+      if (!assignmentClassIds.includes(String(classId))) {
         const meta = buildPagination({ page, limit }, 0);
         return jsonOk({ data: [], pagination: meta });
       }
       filter.classId = classId;
+
+      if (sectionId && mongoose.Types.ObjectId.isValid(sectionId)) {
+        if (!teacherTeachesClassSection(teacher, classId, sectionId)) {
+          const meta = buildPagination({ page, limit }, 0);
+          return jsonOk({ data: [], pagination: meta });
+        }
+        filter.sectionId = sectionId;
+      } else {
+        const allowedSections = [
+          ...new Set(
+            (teacher.assignments ?? [])
+              .filter((a) => String(a.classId?._id ?? a.classId) === String(classId))
+              .map((a) => String(a.sectionId?._id ?? a.sectionId))
+              .filter(Boolean)
+          ),
+        ];
+        if (allowedSections.length) {
+          filter.sectionId = {
+            $in: allowedSections.map((id) => new mongoose.Types.ObjectId(id)),
+          };
+        }
+      }
     } else {
-      filter.classId = { $in: allowed.map((id) => new mongoose.Types.ObjectId(id)) };
+      const pairs = (teacher.assignments ?? [])
+        .map((a) => ({
+          classId: a.classId?._id ?? a.classId,
+          sectionId: a.sectionId?._id ?? a.sectionId,
+        }))
+        .filter((p) => p.classId && p.sectionId && mongoose.Types.ObjectId.isValid(String(p.classId)) && mongoose.Types.ObjectId.isValid(String(p.sectionId)));
+      if (!pairs.length) {
+        const meta = buildPagination({ page, limit }, 0);
+        return jsonOk({ data: [], pagination: meta });
+      }
+      filter.$or = pairs.map((p) => ({
+        classId: new mongoose.Types.ObjectId(String(p.classId)),
+        sectionId: new mongoose.Types.ObjectId(String(p.sectionId)),
+      }));
     }
   } else if (classId && mongoose.Types.ObjectId.isValid(classId)) {
     filter.classId = classId;
   }
 
-  if (sectionId && mongoose.Types.ObjectId.isValid(sectionId)) {
+  const teacherScopedSection =
+    gate.role === "teacher" &&
+    (filter.sectionId !== undefined || filter.$or !== undefined);
+
+  if (sectionId && mongoose.Types.ObjectId.isValid(sectionId) && !teacherScopedSection) {
     filter.sectionId = sectionId;
   }
 
@@ -119,7 +171,7 @@ export async function POST(req) {
     let markedByTeacherId = null;
     if (gate.role === "teacher") {
       const teacher = await Teacher.findOne({ clerkUserId: gate.userId }).lean();
-      if (!teacher || !teacherTeachesClass(teacher, classId)) {
+      if (!teacher || !teacherTeachesClassSection(teacher, classId, sectionId)) {
         return jsonError("Forbidden", 403);
       }
       markedByTeacherId = teacher._id;
@@ -169,7 +221,7 @@ export async function POST(req) {
 
   if (gate.role === "teacher") {
     const teacher = await Teacher.findOne({ clerkUserId: gate.userId }).lean();
-    if (!teacher || !teacherTeachesClass(teacher, payload.classId)) {
+    if (!teacher || !teacherTeachesClassSection(teacher, payload.classId, payload.sectionId)) {
       return jsonError("Forbidden", 403);
     }
     payload.markedBy = teacher._id;

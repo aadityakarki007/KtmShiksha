@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { apiFetch } from "@/lib/client-api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StudentPageIntro } from "@/components/student/student-page-intro";
 
 export default function StudentNoticesPage() {
   const [rows, setRows] = useState([]);
@@ -24,16 +25,22 @@ export default function StudentNoticesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Notices for students</h1>
-        <p className="text-muted-foreground mt-2 text-sm">
-          School-wide and learner-focused announcements appear here when you are signed in.
-        </p>
-      </div>
+      <StudentPageIntro
+        title="Notices for students"
+        description="School-wide and learner-focused announcements appear here when you are signed in."
+      />
 
       <div className="flex flex-col gap-4">
+        {!rows.length ? (
+          <p className="text-muted-foreground rounded-2xl border border-dashed px-4 py-8 text-center text-sm">
+            No notices for you yet. Check back later or browse public notices on the school site.
+          </p>
+        ) : null}
         {rows.map((n) => (
-          <Card key={n._id}>
+          <Card
+            key={n._id}
+            className="border-amber-500/12 bg-card/95 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/25 dark:bg-card/50"
+          >
             <CardHeader>
               <div className="flex flex-wrap items-center gap-2">
                 <CardTitle className="text-xl">{n.title}</CardTitle>

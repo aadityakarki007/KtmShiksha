@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { GRADE_LEVELS } from "@/lib/constants";
 import { apiFetch } from "@/lib/client-api";
@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { selectItemsById } from "@/lib/select-items";
 
 const DEFAULT_CLASS_LEVELS = ["Nursery", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 
@@ -74,6 +75,15 @@ export default function AdminClassesPage() {
     loadClasses();
     loadSections();
   }, []);
+
+  const levelSelectItems = useMemo(
+    () => Object.fromEntries(GRADE_LEVELS.map((lvl) => [lvl, lvl])),
+    []
+  );
+  const sectionClassSelectItems = useMemo(
+    () => selectItemsById(classes, (c) => c.name),
+    [classes]
+  );
 
   async function createClass(e) {
     e.preventDefault();
@@ -161,6 +171,7 @@ export default function AdminClassesPage() {
                   <Label>Level</Label>
                   <Select
                     value={classForm.level}
+                    items={levelSelectItems}
                     onValueChange={(v) => setClassForm((f) => ({ ...f, level: v }))}
                   >
                     <SelectTrigger>
@@ -236,6 +247,7 @@ export default function AdminClassesPage() {
                   <Label>Class</Label>
                   <Select
                     value={sectionForm.classId}
+                    items={sectionClassSelectItems}
                     onValueChange={(v) => setSectionForm((f) => ({ ...f, classId: v }))}
                   >
                     <SelectTrigger>
@@ -243,7 +255,7 @@ export default function AdminClassesPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {classes.map((c) => (
-                        <SelectItem key={c._id} value={c._id}>
+                        <SelectItem key={c._id} value={String(c._id)}>
                           {c.name}
                         </SelectItem>
                       ))}

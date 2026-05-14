@@ -1,10 +1,11 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
 import { format } from "date-fns";
+import { currentUser } from "@clerk/nextjs/server";
 import { connectDB } from "@/lib/mongodb";
 import Notice from "@/models/Notice";
 import { resolveRole } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SitePageShell } from "@/components/site/site-page-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -43,18 +44,21 @@ export default async function NoticesPublicPage() {
     .lean();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16">
-      <h1 className="text-4xl font-semibold tracking-tight">School notices</h1>
-      <p className="text-muted-foreground mt-3 max-w-3xl text-lg leading-relaxed">
-        Official updates for families and staff. Sign in to see notices targeted to your role.
-      </p>
-
-      <div className="mt-10 flex flex-col gap-4">
+    <SitePageShell
+      title="School notices"
+      description="Official updates for families and staff. Sign in to see notices targeted to your role."
+    >
+      <div className="flex flex-col gap-4">
         {notices.length === 0 ? (
           <p className="text-muted-foreground text-sm">No notices published yet.</p>
         ) : (
           notices.map((n) => (
-            <Card key={String(n._id)} className={n.pinned ? "border-primary/40" : ""}>
+            <Card
+              key={String(n._id)}
+              className={`border-l-4 bg-card/90 transition-all duration-300 hover:shadow-md dark:bg-card/50 ${
+                n.pinned ? "border-l-amber-500/70" : "border-l-border/40"
+              }`}
+            >
               <CardHeader>
                 <div className="flex flex-wrap items-center gap-2">
                   <CardTitle className="text-xl">{n.title}</CardTitle>
@@ -76,6 +80,6 @@ export default async function NoticesPublicPage() {
           ))
         )}
       </div>
-    </div>
+    </SitePageShell>
   );
 }

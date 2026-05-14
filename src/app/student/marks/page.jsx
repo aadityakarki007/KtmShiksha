@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/client-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StudentPageIntro } from "@/components/student/student-page-intro";
 import {
   Table,
   TableBody,
@@ -30,14 +31,12 @@ export default function StudentMarksPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Marks & report cards</h1>
-        <p className="text-muted-foreground mt-2 text-sm">
-          Scores sync whenever teachers publish results for your exams.
-        </p>
-      </div>
+      <StudentPageIntro
+        title="Marks & report cards"
+        description="Scores sync whenever teachers publish results for your exams."
+      />
 
-      <Card>
+      <Card className="border-sky-500/15 shadow-sm transition-all duration-300 hover:shadow-md dark:border-sky-800/30">
         <CardHeader>
           <CardTitle>Published marks</CardTitle>
         </CardHeader>

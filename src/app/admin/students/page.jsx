@@ -40,6 +40,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiFetch } from "@/lib/client-api";
+import { selectItemsById } from "@/lib/select-items";
 
 const emptyForm = {
   firstName: "",
@@ -121,6 +122,15 @@ export default function AdminStudentsPage() {
     }
     loadSections();
   }, [form.classId]);
+
+  const classSelectItems = useMemo(
+    () => selectItemsById(classes, (c) => `${c.name} (${c.level})`),
+    [classes]
+  );
+  const sectionSelectItems = useMemo(
+    () => selectItemsById(sections, (s) => s.name),
+    [sections]
+  );
 
   function openCreate() {
     setEditingId(null);
@@ -339,6 +349,7 @@ export default function AdminStudentsPage() {
               <Label>Class</Label>
               <Select
                 value={form.classId}
+                items={classSelectItems}
                 onValueChange={(v) => setForm((f) => ({ ...f, classId: v, sectionId: "" }))}
               >
                 <SelectTrigger>
@@ -346,7 +357,7 @@ export default function AdminStudentsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {classes.map((c) => (
-                    <SelectItem key={c._id} value={c._id}>
+                    <SelectItem key={c._id} value={String(c._id)}>
                       {c.name} ({c.level})
                     </SelectItem>
                   ))}
@@ -357,6 +368,7 @@ export default function AdminStudentsPage() {
               <Label>Section</Label>
               <Select
                 value={form.sectionId}
+                items={sectionSelectItems}
                 onValueChange={(v) => setForm((f) => ({ ...f, sectionId: v }))}
               >
                 <SelectTrigger>
@@ -364,7 +376,7 @@ export default function AdminStudentsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {sections.map((s) => (
-                    <SelectItem key={s._id} value={s._id}>
+                    <SelectItem key={s._id} value={String(s._id)}>
                       {s.name}
                     </SelectItem>
                   ))}

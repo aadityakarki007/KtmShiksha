@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { format } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/client-api";
+import {
+  bsYmdToLocalDayBoundsIso,
+  defaultBsYmd,
+  formatAdAsBsLongEn,
+  isValidBsYmd,
+} from "@/lib/nepali-date";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { selectItemsById } from "@/lib/select-items";
 
 export default function AdminAttendancePage() {
   const [rows, setRows] = useState([]);
@@ -31,14 +37,14 @@ export default function AdminAttendancePage() {
   const [filters, setFilters] = useState({
     classId: "",
     sectionId: "",
-    startDate: "",
-    endDate: "",
+    bsStart: defaultBsYmd(),
+    bsEnd: defaultBsYmd(),
   });
 
   async function loadRefs() {
     try {
-      const c = await apiFetch("/api/classes?limit=200");
-      setClasses(c.data);
+      const c = await apiFetch("/api/classes?limit=100&page=1");
+      setClasses(c.data ?? []);
     } catch {
       /* ignore */
     }
@@ -50,8 +56,8 @@ export default function AdminAttendancePage() {
       return;
     }
     try {
-      const res = await apiFetch(`/api/sections?classId=${classId}&limit=200`);
-      setSections(res.data);
+      const res = await apiFetch(`/api/sections?classId=${classId}&limit=100&page=1`);
+      setSections(res.data ?? []);
     } catch {
       setSections([]);
     }
@@ -62,10 +68,16 @@ export default function AdminAttendancePage() {
       const params = new URLSearchParams({ limit: "100", page: "1" });
       if (filters.classId) params.set("classId", filters.classId);
       if (filters.sectionId) params.set("sectionId", filters.sectionId);
-      if (filters.startDate) params.set("startDate", filters.startDate);
-      if (filters.endDate) params.set("endDate", filters.endDate);
+
+      if (isValidBsYmd(filters.bsStart) && isValidBsYmd(filters.bsEnd)) {
+        const startIso = bsYmdToLocalDayBoundsIso(filters.bsStart).startIso;
+        const endIso = bsYmdToLocalDayBoundsIso(filters.bsEnd).endIso;
+        params.set("startDate", startIso);
+        params.set("endDate", endIso);
+      }
+
       const res = await apiFetch(`/api/attendance?${params.toString()}`);
-      setRows(res.data);
+      setRows(res.data ?? []);
     } catch (e) {
       toast.error(e.message);
     }
@@ -82,14 +94,24 @@ export default function AdminAttendancePage() {
   useEffect(() => {
     loadAttendance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.classId, filters.sectionId, filters.startDate, filters.endDate]);
+  }, [filters.classId, filters.sectionId, filters.bsStart, filters.bsEnd]);
+
+  const classSelectItems = useMemo(
+    () => selectItemsById(classes, (c) => c.name),
+    [classes]
+  );
+  const sectionSelectItems = useMemo(
+    () => selectItemsById(sections, (s) => s.name),
+    [sections]
+  );
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Attendance</h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Audit daily attendance captured by teachers. Filters help reconcile exports and interventions.
+          Filter by class, section, and Bikram Sambat (BS) date range. Records show BS with AD in
+          parentheses.
         </p>
       </div>
 
@@ -102,6 +124,7 @@ export default function AdminAttendancePage() {
             <Label>Class</Label>
             <Select
               value={filters.classId}
+              items={classSelectItems}
               onValueChange={(v) =>
                 setFilters((f) => ({ ...f, classId: v, sectionId: "" }))
               }
@@ -111,7 +134,7 @@ export default function AdminAttendancePage() {
               </SelectTrigger>
               <SelectContent>
                 {classes.map((c) => (
-                  <SelectItem key={c._id} value={c._id}>
+                  <SelectItem key={c._id} value={String(c._id)}>
                     {c.name}
                   </SelectItem>
                 ))}
@@ -122,6 +145,7 @@ export default function AdminAttendancePage() {
             <Label>Section</Label>
             <Select
               value={filters.sectionId}
+              items={sectionSelectItems}
               onValueChange={(v) => setFilters((f) => ({ ...f, sectionId: v }))}
             >
               <SelectTrigger>
@@ -129,7 +153,7 @@ export default function AdminAttendancePage() {
               </SelectTrigger>
               <SelectContent>
                 {sections.map((s) => (
-                  <SelectItem key={s._id} value={s._id}>
+                  <SelectItem key={s._id} value={String(s._id)}>
                     {s.name}
                   </SelectItem>
                 ))}
@@ -137,20 +161,39 @@ export default function AdminAttendancePage() {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Start date</Label>
+            <Label>From (BS)</Label>
             <Input
-              type="date"
-              value={filters.startDate}
-              onChange={(e) => setFilters((f) => ({ ...f, startDate: e.target.value }))}
+              placeholder="2081-01-01"
+              value={filters.bsStart}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, bsStart: e.target.value.replace(/\//g, "-") }))
+              }
             />
           </div>
           <div className="space-y-2">
-            <Label>End date</Label>
+            <Label>To (BS)</Label>
             <Input
-              type="date"
-              value={filters.endDate}
-              onChange={(e) => setFilters((f) => ({ ...f, endDate: e.target.value }))}
+              placeholder="2081-01-31"
+              value={filters.bsEnd}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, bsEnd: e.target.value.replace(/\//g, "-") }))
+              }
             />
+          </div>
+          <div className="flex flex-wrap items-end gap-2 md:col-span-2 lg:col-span-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setFilters((f) => ({ ...f, bsStart: defaultBsYmd(), bsEnd: defaultBsYmd() }))
+              }
+            >
+              Today (BS)
+            </Button>
+            <Button type="button" variant="secondary" size="sm" onClick={loadAttendance}>
+              Refresh
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -158,15 +201,12 @@ export default function AdminAttendancePage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Records</CardTitle>
-          <Button variant="outline" size="sm" onClick={loadAttendance}>
-            Refresh
-          </Button>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
+                <TableHead>Date (BS)</TableHead>
                 <TableHead>Student</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Section</TableHead>
@@ -177,8 +217,18 @@ export default function AdminAttendancePage() {
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r._id}>
-                  <TableCell>
-                    {r.date ? format(new Date(r.date), "yyyy-MM-dd") : "—"}
+                  <TableCell className="whitespace-nowrap">
+                    <span className="font-medium">{formatAdAsBsLongEn(r.date)}</span>
+                    <span className="text-muted-foreground block text-xs">
+                      {r.date
+                        ? new Date(r.date).toLocaleDateString("en-GB", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : "—"}{" "}
+                      AD
+                    </span>
                   </TableCell>
                   <TableCell>
                     {r.studentId?.firstName} {r.studentId?.lastName}

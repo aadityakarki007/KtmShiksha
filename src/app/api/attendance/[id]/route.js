@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
-import Attendance from "@/models/Attendance";
+import "@/models/Class";
+import "@/models/Section";
 import Teacher from "@/models/Teacher";
 import { requireApiAuth } from "@/lib/auth";
 import { attendanceBodySchema } from "@/lib/validations";
 import { jsonError, jsonOk, parseBody } from "@/lib/http";
-import { teacherTeachesClass } from "@/lib/teacher-access";
+import { teacherTeachesClassSection } from "@/lib/teacher-access";
 
 function isValidId(id) {
   return mongoose.Types.ObjectId.isValid(id);
@@ -38,10 +39,11 @@ export async function PATCH(req, ctx) {
   }
 
   const targetClassId = parsed.data.classId ?? existing.classId;
+  const targetSectionId = parsed.data.sectionId ?? existing.sectionId;
 
   if (gate.role === "teacher") {
     const teacher = await Teacher.findOne({ clerkUserId: gate.userId }).lean();
-    if (!teacher || !teacherTeachesClass(teacher, targetClassId)) {
+    if (!teacher || !teacherTeachesClassSection(teacher, targetClassId, targetSectionId)) {
       return jsonError("Forbidden", 403);
     }
     parsed.data.markedBy = teacher._id;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/client-api";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { selectItemsById } from "@/lib/select-items";
 
 export default function TeacherMarksPage() {
   const [exams, setExams] = useState([]);
@@ -65,6 +66,14 @@ export default function TeacherMarksPage() {
     loadExamDetail();
   }, [examId]);
 
+  const examSelectItems = useMemo(
+    () =>
+      selectItemsById(exams, (ex) =>
+        ex.classId?.name != null ? `${ex.name} · ${ex.classId.name}` : ex.name
+      ),
+    [exams]
+  );
+
   async function saveMark(studentId, rawScore) {
     if (!exam) return;
     try {
@@ -101,13 +110,13 @@ export default function TeacherMarksPage() {
         </CardHeader>
         <CardContent className="max-w-xl space-y-2">
           <Label>Exam</Label>
-          <Select value={examId} onValueChange={setExamId}>
+          <Select value={examId} onValueChange={setExamId} items={examSelectItems}>
             <SelectTrigger>
               <SelectValue placeholder="Choose exam" />
             </SelectTrigger>
             <SelectContent className="max-h-72">
               {exams.map((ex) => (
-                <SelectItem key={ex._id} value={ex._id}>
+                <SelectItem key={ex._id} value={String(ex._id)}>
                   {ex.name} · {ex.classId?.name}
                 </SelectItem>
               ))}

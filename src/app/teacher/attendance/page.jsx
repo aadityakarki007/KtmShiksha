@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/client-api";
 import { ATTENDANCE_STATUS } from "@/lib/constants";
+import {
+  bsYmdToAttendanceSaveIso,
+  bsYmdToLocalDayBoundsIso,
+  defaultBsYmd,
+  isValidBsYmd,
+} from "@/lib/nepali-date";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,10 +35,11 @@ export default function TeacherAttendancePage() {
   const [classId, setClassId] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [sections, setSections] = useState([]);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [bsDate, setBsDate] = useState(defaultBsYmd);
   const [students, setStudents] = useState([]);
   const [statusMap, setStatusMap] = useState({});
   const [loading, setLoading] = useState(false);
+  const [historyRows, setHistoryRows] = useState([]);
 
   useEffect(() => {
     async function loadTeacher() {
@@ -73,6 +80,21 @@ export default function TeacherAttendancePage() {
     return name || level || "";
   }
 
+  const adPreview = useMemo(() => {
+    if (!isValidBsYmd(bsDate)) return "";
+    try {
+      const { startIso } = bsYmdToLocalDayBoundsIso(bsDate);
+      const d = new Date(startIso);
+      return d.toLocaleDateString("en-GB", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "";
+    }
+  }, [bsDate]);
+
   useEffect(() => {
     async function loadSections() {
       if (!classId) {
@@ -80,8 +102,8 @@ export default function TeacherAttendancePage() {
         return;
       }
       try {
-        const res = await apiFetch(`/api/sections?classId=${classId}&limit=200`);
-        setSections(res.data);
+        const res = await apiFetch(`/api/sections?classId=${classId}&limit=100`);
+        setSections(res.data ?? []);
       } catch {
         setSections([]);
       }
@@ -89,21 +111,43 @@ export default function TeacherAttendancePage() {
     loadSections();
   }, [classId]);
 
-  async function loadStudents() {
+  async function loadRosterAndExisting() {
     if (!classId || !sectionId) {
       toast.error("Choose class and section");
       return;
     }
+    if (!isValidBsYmd(bsDate)) {
+      toast.error("Enter a valid Bikram Sambat date (YYYY-MM-DD)");
+      return;
+    }
     setLoading(true);
+    setHistoryRows([]);
     try {
       const res = await apiFetch(
-        `/api/students?classId=${classId}&sectionId=${sectionId}&limit=200`
+        `/api/students?classId=${classId}&sectionId=${sectionId}&limit=100`
       );
-      setStudents(res.data);
+      const list = res.data ?? [];
+      setStudents(list);
+
       const initial = {};
-      res.data.forEach((s) => {
+      list.forEach((s) => {
         initial[s._id] = "present";
       });
+
+      const { startIso, endIso } = bsYmdToLocalDayBoundsIso(bsDate);
+      try {
+        const att = await apiFetch(
+          `/api/attendance?classId=${classId}&sectionId=${sectionId}&startDate=${encodeURIComponent(startIso)}&endDate=${encodeURIComponent(endIso)}&limit=100&page=1`
+        );
+        const rows = att.data ?? [];
+        setHistoryRows(rows);
+        rows.forEach((row) => {
+          const sid = String(row.studentId?._id ?? row.studentId);
+          if (sid) initial[sid] = row.status;
+        });
+      } catch {
+        /* no rows yet */
+      }
       setStatusMap(initial);
     } catch (e) {
       toast.error(e.message);
@@ -114,14 +158,18 @@ export default function TeacherAttendancePage() {
 
   async function submit() {
     if (!classId || !sectionId || !students.length) {
-      toast.error("Load students before saving");
+      toast.error("Load roster before saving");
+      return;
+    }
+    if (!isValidBsYmd(bsDate)) {
+      toast.error("Enter a valid Bikram Sambat date (YYYY-MM-DD)");
       return;
     }
     try {
       await apiFetch("/api/attendance", {
         method: "POST",
         body: JSON.stringify({
-          date: new Date(date).toISOString(),
+          date: bsYmdToAttendanceSaveIso(bsDate),
           classId,
           sectionId,
           entries: students.map((s) => ({
@@ -131,6 +179,7 @@ export default function TeacherAttendancePage() {
         }),
       });
       toast.success("Attendance saved");
+      await loadRosterAndExisting();
     } catch (e) {
       toast.error(e.message);
     }
@@ -141,7 +190,8 @@ export default function TeacherAttendancePage() {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Daily attendance</h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Select your teaching section, load learners, adjust statuses, and submit in one pass.
+          Dates use Bikram Sambat (BS). Pick class, section, and BS date, load the roster, adjust
+          statuses, and save. Load again anytime to view or edit saved attendance for that day.
         </p>
       </div>
 
@@ -185,12 +235,23 @@ export default function TeacherAttendancePage() {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Label>Date (BS)</Label>
+            <Input
+              placeholder="2081-11-28"
+              value={bsDate}
+              onChange={(e) => setBsDate(e.target.value.replace(/\//g, "-"))}
+            />
+            <p className="text-muted-foreground text-xs">Format YYYY-MM-DD (Bikram Sambat).</p>
+            {adPreview ? (
+              <p className="text-muted-foreground text-xs">≈ {adPreview} (AD)</p>
+            ) : null}
+            <Button type="button" variant="outline" size="sm" onClick={() => setBsDate(defaultBsYmd())}>
+              Today (BS)
+            </Button>
           </div>
           <div className="flex items-end gap-2">
-            <Button type="button" variant="secondary" className="flex-1" onClick={loadStudents}>
-              Load roster
+            <Button type="button" variant="secondary" className="flex-1" onClick={loadRosterAndExisting}>
+              {loading ? "Loading…" : "Load roster"}
             </Button>
           </div>
         </CardContent>
@@ -254,6 +315,18 @@ export default function TeacherAttendancePage() {
           </Table>
         </CardContent>
       </Card>
+
+      {historyRows.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Saved for this BS day ({bsDate})</CardTitle>
+          </CardHeader>
+          <CardContent className="text-muted-foreground text-sm">
+            {historyRows.length} record(s) loaded for this class, section, and date. Edit statuses
+            above and save to update.
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

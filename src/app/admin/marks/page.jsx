@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/client-api";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { selectItemsById } from "@/lib/select-items";
 
 export default function AdminMarksPage() {
   const [marks, setMarks] = useState([]);
@@ -63,6 +64,22 @@ export default function AdminMarksPage() {
     }
     refs();
   }, []);
+
+  const examSelectItems = useMemo(
+    () =>
+      selectItemsById(exams, (ex) =>
+        ex.classId?.name != null ? `${ex.name} · ${ex.classId.name}` : ex.name
+      ),
+    [exams]
+  );
+  const subjectSelectItems = useMemo(
+    () => selectItemsById(subjects, (s) => s.name),
+    [subjects]
+  );
+  const studentSelectItems = useMemo(
+    () => selectItemsById(students, (st) => `${st.firstName} ${st.lastName}`),
+    [students]
+  );
 
   async function saveMark(e) {
     e.preventDefault();
@@ -115,6 +132,7 @@ export default function AdminMarksPage() {
               <Label>Exam</Label>
               <Select
                 value={form.examId}
+                items={examSelectItems}
                 onValueChange={(v) => setForm((f) => ({ ...f, examId: v }))}
               >
                 <SelectTrigger>
@@ -122,7 +140,7 @@ export default function AdminMarksPage() {
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
                   {exams.map((ex) => (
-                    <SelectItem key={ex._id} value={ex._id}>
+                    <SelectItem key={ex._id} value={String(ex._id)}>
                       {ex.name} · {ex.classId?.name}
                     </SelectItem>
                   ))}
@@ -133,6 +151,7 @@ export default function AdminMarksPage() {
               <Label>Subject</Label>
               <Select
                 value={form.subjectId}
+                items={subjectSelectItems}
                 onValueChange={(v) => setForm((f) => ({ ...f, subjectId: v }))}
               >
                 <SelectTrigger>
@@ -140,7 +159,7 @@ export default function AdminMarksPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.map((s) => (
-                    <SelectItem key={s._id} value={s._id}>
+                    <SelectItem key={s._id} value={String(s._id)}>
                       {s.name}
                     </SelectItem>
                   ))}
@@ -151,6 +170,7 @@ export default function AdminMarksPage() {
               <Label>Student</Label>
               <Select
                 value={form.studentId}
+                items={studentSelectItems}
                 onValueChange={(v) => setForm((f) => ({ ...f, studentId: v }))}
               >
                 <SelectTrigger>
@@ -158,7 +178,7 @@ export default function AdminMarksPage() {
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
                   {students.map((st) => (
-                    <SelectItem key={st._id} value={st._id}>
+                    <SelectItem key={st._id} value={String(st._id)}>
                       {st.firstName} {st.lastName}
                     </SelectItem>
                   ))}

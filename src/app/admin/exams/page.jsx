@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/client-api";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { selectItemsById } from "@/lib/select-items";
 
 export default function AdminExamsPage() {
   const [rows, setRows] = useState([]);
@@ -61,6 +62,15 @@ export default function AdminExamsPage() {
     }
     refs();
   }, []);
+
+  const classSelectItems = useMemo(
+    () => selectItemsById(classes, (c) => c.name),
+    [classes]
+  );
+  const subjectSelectItems = useMemo(
+    () => selectItemsById(subjects, (s) => s.name),
+    [subjects]
+  );
 
   async function create(e) {
     e.preventDefault();
@@ -124,6 +134,7 @@ export default function AdminExamsPage() {
               <Label>Class</Label>
               <Select
                 value={form.classId}
+                items={classSelectItems}
                 onValueChange={(v) => setForm((f) => ({ ...f, classId: v }))}
               >
                 <SelectTrigger>
@@ -131,7 +142,7 @@ export default function AdminExamsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {classes.map((c) => (
-                    <SelectItem key={c._id} value={c._id}>
+                    <SelectItem key={c._id} value={String(c._id)}>
                       {c.name}
                     </SelectItem>
                   ))}
@@ -142,6 +153,7 @@ export default function AdminExamsPage() {
               <Label>Subject</Label>
               <Select
                 value={form.subjectId}
+                items={subjectSelectItems}
                 onValueChange={(v) => setForm((f) => ({ ...f, subjectId: v }))}
               >
                 <SelectTrigger>
@@ -149,7 +161,7 @@ export default function AdminExamsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.map((s) => (
-                    <SelectItem key={s._id} value={s._id}>
+                    <SelectItem key={s._id} value={String(s._id)}>
                       {s.name}
                     </SelectItem>
                   ))}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { connectDB } from "@/lib/mongodb";
 import Teacher from "@/models/Teacher";
+import DashboardAttendanceList from "@/components/attendance/dashboard-attendance-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -13,6 +14,24 @@ export const metadata = {
 
 export default async function TeacherHomePage() {
   const user = await currentUser();
+  if (!user?.id) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Sign in required</CardTitle>
+            <CardDescription>Please sign in to view your teacher dashboard.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild size="sm">
+              <Link href="/sign-in">Go to sign in</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   await connectDB();
 
   const teacher = await Teacher.findOne({ clerkUserId: user.id })
@@ -71,7 +90,7 @@ export default async function TeacherHomePage() {
             )}
             <div className="flex flex-wrap gap-2 pt-2">
               <Button asChild size="sm">
-                <Link href="/teacher/attendance">Take attendance</Link>
+                <Link href="/teacher/attendance">Take attendance (BS dates)</Link>
               </Button>
               <Button asChild size="sm" variant="outline">
                 <Link href="/teacher/marks">Enter marks</Link>
@@ -80,6 +99,8 @@ export default async function TeacherHomePage() {
           </CardContent>
         </Card>
       )}
+
+      {teacher ? <DashboardAttendanceList role="teacher" /> : null}
     </div>
   );
 }

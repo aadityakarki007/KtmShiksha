@@ -7,6 +7,7 @@ import Subject from "@/models/Subject";
 import Attendance from "@/models/Attendance";
 import Exam from "@/models/Exam";
 import Notice from "@/models/Notice";
+import DashboardAttendanceList from "@/components/attendance/dashboard-attendance-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
@@ -71,6 +72,8 @@ export default async function AdminHomePage() {
           </Card>
         ))}
       </div>
+
+      <DashboardAttendanceList role="admin" />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/client-api";
 import { NOTICE_AUDIENCES } from "@/lib/constants";
@@ -47,6 +47,11 @@ export default function AdminNoticesPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const audienceSelectItems = useMemo(
+    () => Object.fromEntries(NOTICE_AUDIENCES.map((a) => [a, a])),
+    []
+  );
 
   async function create(e) {
     e.preventDefault();
@@ -110,6 +115,7 @@ export default function AdminNoticesPage() {
                 <Label>Audience</Label>
                 <Select
                   value={form.audience}
+                  items={audienceSelectItems}
                   onValueChange={(v) => setForm((f) => ({ ...f, audience: v }))}
                 >
                   <SelectTrigger className="w-[200px]">

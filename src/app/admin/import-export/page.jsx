@@ -23,6 +23,12 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+const IMPORT_ENTITY_ITEMS = { students: "Students", teachers: "Teachers" };
+const DUPLICATE_STRATEGY_ITEMS = {
+  skip: "Skip duplicates",
+  update: "Update duplicates",
+};
+
 export default function AdminImportExportPage() {
   const [entity, setEntity] = useState("students");
   const [duplicateStrategy, setDuplicateStrategy] = useState("skip");
@@ -114,7 +120,7 @@ export default function AdminImportExportPage() {
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Dataset</Label>
-                  <Select value={entity} onValueChange={setEntity}>
+                  <Select value={entity} onValueChange={setEntity} items={IMPORT_ENTITY_ITEMS}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -126,7 +132,11 @@ export default function AdminImportExportPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Duplicates</Label>
-                  <Select value={duplicateStrategy} onValueChange={setDuplicateStrategy}>
+                  <Select
+                    value={duplicateStrategy}
+                    onValueChange={setDuplicateStrategy}
+                    items={DUPLICATE_STRATEGY_ITEMS}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

@@ -5,6 +5,7 @@ export const ADMIN_NAV = [
   { href: "/admin/classes", label: "Classes & sections", icon: "School" },
   { href: "/admin/subjects", label: "Subjects", icon: "BookMarked" },
   { href: "/admin/notices", label: "Notices", icon: "Megaphone" },
+  { href: "/admin/updates", label: "Updates", icon: "Newspaper" },
   { href: "/admin/exams", label: "Exams", icon: "ClipboardList" },
   { href: "/admin/marks", label: "Marks", icon: "Award" },
   { href: "/admin/attendance", label: "Attendance", icon: "CalendarCheck" },
