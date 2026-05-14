@@ -1,3 +1,4 @@
+//src/app/api/updates/route.js
 import { connectDB } from "@/lib/mongodb";
 import Update from "@/models/Update";
 import { requireApiAuth } from "@/lib/auth";
