@@ -60,6 +60,7 @@ export default function AdminStudentsPage() {
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0, limit: 20 });
   const [search, setSearch] = useState("");
+  const [filterClassId, setFilterClassId] = useState(""); // NEW
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState([]);
   const [sections, setSections] = useState([]);
@@ -74,8 +75,9 @@ export default function AdminStudentsPage() {
       limit: String(pagination.limit),
     });
     if (search.trim()) params.set("search", search.trim());
+    if (filterClassId) params.set("classId", filterClassId); // NEW
     return params.toString();
-  }, [pagination.page, pagination.limit, search]);
+  }, [pagination.page, pagination.limit, search, filterClassId]);
 
   async function load() {
     setLoading(true);
@@ -208,17 +210,41 @@ export default function AdminStudentsPage() {
       <Card>
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <CardTitle>Directory</CardTitle>
-          <div className="relative w-full md:w-72">
-            <Search className="text-muted-foreground absolute top-2.5 left-2 h-4 w-4" />
-            <Input
-              className="pl-8"
-              placeholder="Search name, email, roll..."
-              value={search}
-              onChange={(e) => {
+          {/* FILTER ROW */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {/* Class filter */}
+            <Select
+              value={filterClassId || "all"}
+              onValueChange={(v) => {
+                setFilterClassId(v === "all" ? "" : v);
                 setPagination((p) => ({ ...p, page: 1 }));
-                setSearch(e.target.value);
               }}
-            />
+            >
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="All classes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All classes</SelectItem>
+                {classes.map((c) => (
+                  <SelectItem key={c._id} value={String(c._id)}>
+                    {c.name} ({c.level})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Search */}
+            <div className="relative w-full sm:w-64">
+              <Search className="text-muted-foreground absolute top-2.5 left-2 h-4 w-4" />
+              <Input
+                className="pl-8"
+                placeholder="Search name, email, roll..."
+                value={search}
+                onChange={(e) => {
+                  setPagination((p) => ({ ...p, page: 1 }));
+                  setSearch(e.target.value);
+                }}
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -242,7 +268,9 @@ export default function AdminStudentsPage() {
               ) : rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-muted-foreground">
-                    No students found.
+                    {filterClassId
+                      ? "No students in this class."
+                      : "No students found."}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -294,6 +322,7 @@ export default function AdminStudentsPage() {
         </CardContent>
       </Card>
 
+      {/* ── Create / Edit dialog ── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
@@ -349,7 +378,6 @@ export default function AdminStudentsPage() {
               <Label>Class</Label>
               <Select
                 value={form.classId}
-                items={classSelectItems}
                 onValueChange={(v) => setForm((f) => ({ ...f, classId: v, sectionId: "" }))}
               >
                 <SelectTrigger>
@@ -368,7 +396,6 @@ export default function AdminStudentsPage() {
               <Label>Section</Label>
               <Select
                 value={form.sectionId}
-                items={sectionSelectItems}
                 onValueChange={(v) => setForm((f) => ({ ...f, sectionId: v }))}
               >
                 <SelectTrigger>
@@ -418,6 +445,7 @@ export default function AdminStudentsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Delete confirmation ── */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
