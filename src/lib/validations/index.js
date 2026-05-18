@@ -19,6 +19,8 @@ export const studentBodySchema = z.object({
   address: z.string().optional(),
   parentName: z.string().optional(),
   parentPhone: z.string().optional(),
+  house: z.string().optional(),
+  emisId: z.string().optional(),
   admissionDate: z.coerce.date().optional(),
   classId: objectIdString,
   sectionId: objectIdString,
@@ -115,6 +117,8 @@ export const importRunSchema = z.object({
   mode: z.enum(["preview", "commit"]),
   duplicateStrategy: z.enum(["skip", "update"]).default("skip"),
   rows: z.array(z.record(z.string(), z.any())),
+  classId: objectIdString.optional(),
+  sectionId: objectIdString.optional(),
 });
 
 export const importCommitPreparedSchema = z.object({

@@ -1,3 +1,4 @@
+// src/lib/import-helpers.js
 import mongoose from "mongoose";
 import ClassModel from "@/models/Class";
 import Section from "@/models/Section";
@@ -5,11 +6,18 @@ import Student from "@/models/Student";
 import Teacher from "@/models/Teacher";
 import { GRADE_LEVELS } from "@/lib/constants";
 
+function excelSerialToDate(serial) {
+  const n = Number(serial);
+  if (!n || isNaN(n)) return undefined;
+  return new Date(Math.round((n - 25569) * 86400 * 1000));
+}
+
 function normalizeHeader(key) {
   return String(key ?? "")
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, "");
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9]/g, ""); // Remove special characters like apostrophes, underscores, etc.
 }
 
 export function normalizeRow(row) {
@@ -52,7 +60,7 @@ function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export async function validateStudentRows(rows, duplicateStrategy) {
+export async function validateStudentRows(rows, duplicateStrategy, defaultClassId = null, defaultSectionId = null) {
   const summary = { created: 0, updated: 0, skipped: 0, errors: [], duplicates: [] };
   const prepared = [];
 
@@ -60,27 +68,59 @@ export async function validateStudentRows(rows, duplicateStrategy) {
     const raw = normalizeRow(rows[i]);
     const rowIndex = i + 2;
 
-    const firstName = raw.firstname || raw.first_name;
-    const lastName = raw.lastname || raw.last_name;
+    // Try to get separate firstName and lastName
+    let firstName = raw.firstname || raw.first_name || "";
+    let lastName = raw.lastname || raw.last_name || "";
+    
+    // If no separate names, try to parse full name from "Student's Name" column
+    const fullName = raw.studentsname || raw.studentname || raw.student_name || raw.name || "";
+    if (fullName && !firstName && !lastName) {
+      // Parse full name into firstName and lastName
+      const nameParts = String(fullName).trim().split(/\s+/);
+      if (nameParts.length >= 2) {
+        firstName = nameParts[0];
+        lastName = nameParts.slice(1).join(" ");
+      } else if (nameParts.length === 1) {
+        firstName = nameParts[0];
+        lastName = nameParts[0]; // Use first name for both if only one name provided
+      }
+    }
+
     const email = raw.email || "";
-    const rollNumber = raw.rollnumber || raw.roll_number || "";
+    const rollNumber = raw.rollnumber || raw.roll_number || raw.rollno || "";
     const level = raw.level || raw.grade || "";
     const className = raw.classname || raw.class_name || raw.class || "";
     const sectionName = raw.section || raw.sectionname || raw.section_name || "";
+    const parentPhone = raw.parentphone || raw.parent_phone || raw.contactno || raw.contact_no || "";
+    const parentName = raw.parentsname || raw.parentname || raw.parent_name || "";
+    const dateOfBirth = raw.dateofbirth || raw.date_of_birth || raw.dob || "";
+    const house = (raw.house && raw.house !== "-") ? String(raw.house) : "";
+    const emisId = (raw.emisid && raw.emisid !== "-") ? String(raw.emisid)
+             : (raw.emis_id && raw.emis_id !== "-") ? String(raw.emis_id) : "";
+    const address = raw.address || "";
 
     if (!firstName || !lastName) {
-      summary.errors.push({ row: rowIndex, message: "firstName and lastName are required" });
-      continue;
-    }
-    if (!level || !sectionName) {
-      summary.errors.push({ row: rowIndex, message: "level and section are required" });
+      summary.errors.push({ row: rowIndex, message: "Student name is required (firstName, lastName, or Student's Name column)" });
       continue;
     }
 
-    const resolved = await resolveClassSection(level, className || level, sectionName);
-    if (resolved.error) {
-      summary.errors.push({ row: rowIndex, message: resolved.error });
-      continue;
+    // If classId/sectionId provided from UI, use them; otherwise try to resolve from data
+    let classId = defaultClassId;
+    let sectionId = defaultSectionId;
+
+    if (!classId || !sectionId) {
+      if (!level || !sectionName) {
+        summary.errors.push({ row: rowIndex, message: "level and section are required, or select them from import form" });
+        continue;
+      }
+
+      const resolved = await resolveClassSection(level, className || level, sectionName);
+      if (resolved.error) {
+        summary.errors.push({ row: rowIndex, message: resolved.error });
+        continue;
+      }
+      classId = resolved.classId;
+      sectionId = resolved.sectionId;
     }
 
     let duplicate = null;
@@ -90,7 +130,7 @@ export async function validateStudentRows(rows, duplicateStrategy) {
     if (!duplicate && rollNumber) {
       duplicate = await Student.findOne({
         rollNumber,
-        classId: resolved.classId,
+        classId,
       }).lean();
     }
 
@@ -113,10 +153,17 @@ export async function validateStudentRows(rows, duplicateStrategy) {
         lastName,
         email,
         rollNumber,
-        classId: resolved.classId,
-        sectionId: resolved.sectionId,
-        parentPhone: raw.parentphone || raw.parent_phone || "",
-        parentName: raw.parentname || raw.parent_name || "",
+        classId,
+        sectionId,
+        parentPhone,
+        parentName,
+        dateOfBirth: dateOfBirth
+          ? (isNaN(Number(dateOfBirth)) ? new Date(dateOfBirth) : excelSerialToDate(dateOfBirth))
+          : undefined,
+        house,
+        emisId,
+        address,
+        gender: raw.gender || "",
       },
       duplicateId: duplicate ? duplicate._id : null,
     });

@@ -1,6 +1,7 @@
+// src/app/admin/import-export/page.jsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/client-api";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,39 @@ export default function AdminImportExportPage() {
   const [duplicateStrategy, setDuplicateStrategy] = useState("skip");
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [classes, setClasses] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [classId, setClassId] = useState("");
+  const [sectionId, setSectionId] = useState("");
+
+  useEffect(() => {
+    async function loadClasses() {
+      try {
+        const data = await apiFetch("/api/classes?limit=200");
+        setClasses(data.data);
+      } catch {
+        /* ignore */
+      }
+    }
+    loadClasses();
+  }, []);
+
+  useEffect(() => {
+    async function loadSections() {
+      if (!classId) {
+        setSections([]);
+        setSectionId("");
+        return;
+      }
+      try {
+        const data = await apiFetch(`/api/sections?classId=${classId}&limit=200`);
+        setSections(data.data);
+      } catch {
+        setSections([]);
+      }
+    }
+    loadSections();
+  }, [classId]);
 
   async function handleFile(file) {
     if (!file) return;
@@ -44,6 +78,8 @@ export default function AdminImportExportPage() {
       fd.append("entity", entity);
       fd.append("mode", "preview");
       fd.append("duplicateStrategy", duplicateStrategy);
+      if (classId) fd.append("classId", classId);
+      if (sectionId) fd.append("sectionId", sectionId);
 
       const res = await fetch("/api/import", {
         method: "POST",
@@ -114,10 +150,10 @@ export default function AdminImportExportPage() {
           <Card>
             <CardHeader>
               <CardTitle>Upload file</CardTitle>
-              <CardDescription>Supports .csv, .xlsx, and .xls sources.</CardDescription>
+              <CardDescription>Supports .csv, .xlsx, .xlsm, and .xls sources.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-4">
                 <div className="space-y-2">
                   <Label>Dataset</Label>
                   <Select value={entity} onValueChange={setEntity} items={IMPORT_ENTITY_ITEMS}>
@@ -130,6 +166,44 @@ export default function AdminImportExportPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {entity === "students" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Class (optional)</Label>
+                      <Select value={classId} onValueChange={setClassId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes.map((c) => (
+                            <SelectItem key={c._id} value={String(c._id)}>
+                              {c.name} ({c.level})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Section (optional)</Label>
+                      <Select
+                        value={sectionId}
+                        onValueChange={setSectionId}
+                        disabled={!classId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={classId ? "Choose section" : "Select class first"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sections.map((s) => (
+                            <SelectItem key={s._id} value={String(s._id)}>
+                              {s.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
                 <div className="space-y-2">
                   <Label>Duplicates</Label>
                   <Select
@@ -240,7 +314,7 @@ function InputFile({ onPick, disabled }) {
   return (
     <input
       type="file"
-      accept=".csv,.xlsx,.xls"
+      accept=".csv,.xlsx,.xlsm,.xls"
       disabled={disabled}
       onChange={(e) => {
         const file = e.target.files?.[0];

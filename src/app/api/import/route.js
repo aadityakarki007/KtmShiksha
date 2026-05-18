@@ -1,3 +1,4 @@
+// src/app/api/import/route.js
 import { connectDB } from "@/lib/mongodb";
 import { requireApiAuth } from "@/lib/auth";
 import { importRunSchema, importCommitPreparedSchema } from "@/lib/validations";
@@ -64,6 +65,8 @@ export async function POST(req) {
     const entity = form.get("entity");
     const mode = form.get("mode");
     const duplicateStrategy = form.get("duplicateStrategy") ?? "skip";
+    const classId = form.get("classId") || null;
+    const sectionId = form.get("sectionId") || null;
 
     if (!(file instanceof Blob)) {
       return jsonError("file is required", 400);
@@ -77,6 +80,8 @@ export async function POST(req) {
       mode,
       duplicateStrategy,
       rows,
+      classId,
+      sectionId,
     };
   } else if (contentType.includes("application/json")) {
     payload = jsonBody;
@@ -91,14 +96,14 @@ export async function POST(req) {
 
   await connectDB();
 
-  const { entity, mode, duplicateStrategy, rows } = parsed.data;
+  const { entity, mode, duplicateStrategy, rows, classId, sectionId } = parsed.data;
 
   if (!rows.length) {
     return jsonError("rows array is empty", 400);
   }
 
   if (entity === "students") {
-    const { summary, prepared } = await validateStudentRows(rows, duplicateStrategy);
+    const { summary, prepared } = await validateStudentRows(rows, duplicateStrategy, classId, sectionId);
 
     if (mode === "preview") {
       return jsonOk({

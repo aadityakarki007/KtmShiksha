@@ -11,6 +11,8 @@ const StudentSchema = new mongoose.Schema(
     address: { type: String, default: "" },
     parentName: { type: String, default: "" },
     parentPhone: { type: String, default: "" },
+    house: { type: String, default: "" },
+    emisId: { type: String, default: "" },
     admissionDate: { type: Date },
     classId: {
       type: mongoose.Schema.Types.ObjectId,

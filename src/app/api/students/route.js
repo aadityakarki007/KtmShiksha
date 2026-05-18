@@ -85,7 +85,7 @@ export async function GET(req) {
   const meta = buildPagination({ page, limit }, total);
 
   const rows = await Student.find(filter)
-    .sort({ createdAt: -1 })
+    .sort({ rollNumber: 1 })
     .skip(meta.skip)
     .limit(meta.limit)
     .populate("classId", "name level")

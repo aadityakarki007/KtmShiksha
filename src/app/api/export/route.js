@@ -32,15 +32,14 @@ export async function GET(req) {
   if (template === "true") {
     const sampleStudents = [
       {
-        firstName: "Sample",
-        lastName: "Student",
-        email: "student@example.com",
-        rollNumber: "101",
-        level: "5",
-        className: "",
-        section: "A",
-        parentName: "Parent Name",
-        parentPhone: "9800000000",
+        "Roll No": "101",
+        "Student's Name": "Sample Student",
+        "Date Of Birth": "2010-01-15",
+        Address: "Sample Address",
+        "Parent's Name": "Parent Name",
+        "Contact No": "9800000000",
+        House: "House A",
+        "EMIS ID": "EMIS-12345",
       },
     ];
 
@@ -93,15 +92,14 @@ export async function GET(req) {
       .lean();
 
     rows = docs.map((doc) => ({
-      firstName: doc.firstName,
-      lastName: doc.lastName,
-      email: doc.email,
-      rollNumber: doc.rollNumber,
-      className: doc.classId?.name,
-      level: doc.classId?.level,
-      section: doc.sectionId?.name,
-      parentName: doc.parentName,
-      parentPhone: doc.parentPhone,
+      "Roll No": doc.rollNumber,
+      "Student's Name": `${doc.firstName} ${doc.lastName}`.trim(),
+      "Date Of Birth": doc.dateOfBirth ? new Date(doc.dateOfBirth).toISOString().split('T')[0] : "",
+      Address: doc.address,
+      "Parent's Name": doc.parentName,
+      "Contact No": doc.parentPhone,
+      House: doc.house,
+      "EMIS ID": doc.emisId,
     }));
   }
 

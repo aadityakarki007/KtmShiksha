@@ -1,3 +1,4 @@
+//src/app/api/students/[id]/route.js
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import Student from "@/models/Student";
